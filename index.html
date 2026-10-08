@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>INSANE 사건 현장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=JetBrains+Mono:wght@400;600&family=Noto+Serif+KR:wght@400;600;900&display=swap">
+<style>
+/* Layout: a full-bleed film frame. Scenes swap inside it (title → crime scene under a flashlight → reveal → credits); a camcorder HUD and film grain sit on top of everything. Committed dark look. */
+:root{
+  --void:#060607;        /* darkness */
+  --wall:#191512;        /* nicotine wall */
+  --bone:#e9e3d7;        /* text, chalk */
+  --ash:#8d867b;         /* secondary text */
+  --ember:#ff5a1f;       /* fire, REC */
+  --blood:#7d0d10;
+  --tape:#e8c21b;        /* police line */
+  --display:'Bodoni Moda','Didot','Times New Roman',serif;
+  --kr:'Noto Serif KR','AppleMyungjo','Batang',serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--void);color:var(--bone);font-family:var(--kr);overflow:hidden;-webkit-font-smoothing:antialiased;touch-action:none;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:1px solid var(--ember);outline-offset:4px}
+
+.film{position:fixed;inset:0;overflow:hidden;cursor:none}
+.film.shake{animation:shake .5s steps(2) 3}
+@keyframes shake{0%{transform:translate(0,0)}25%{transform:translate(-6px,3px)}50%{transform:translate(5px,-4px)}75%{transform:translate(-3px,-2px)}100%{transform:translate(0,0)}}
+
+/* letterbox 2.39:1 */
+.bar{position:absolute;left:0;right:0;height:0;background:#000;z-index:30;transition:height 1.2s cubic-bezier(.7,0,.2,1)}
+.bar.t{top:0}.bar.b{bottom:0}
+.film.scope .bar{height:min(7vh,max(0px,calc((100% - 100vw / 2.39) / 2)))}
+@media (orientation:portrait){.film.scope .bar{height:9vh}}
+
+/* grain + scanlines */
+#fx{position:absolute;inset:0;width:100%;height:100%;z-index:40;pointer-events:none;mix-blend-mode:screen;opacity:.09}
+.scan{position:absolute;inset:0;z-index:41;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);opacity:.5}
+.vignette{position:absolute;inset:0;z-index:39;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75) 100%)}
+
+/* HUD */
+.hud{position:absolute;z-index:50;font:600 11px/1 var(--mono);letter-spacing:.14em;color:var(--bone);opacity:.82;pointer-events:none;text-transform:uppercase}
+.hud.tl{top:calc(18px + env(safe-area-inset-top,0px));left:20px;display:flex;gap:10px;align-items:center}
+.hud.tr{top:calc(18px + env(safe-area-inset-top,0px));right:20px;font-variant-numeric:tabular-nums}
+.hud.bl{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px}
+.hud.br{bottom:calc(18px + env(safe-area-inset-bottom,0px));right:20px;pointer-events:auto;display:flex;gap:14px;align-items:center}
+.rec{width:8px;height:8px;border-radius:50%;background:var(--ember);box-shadow:0 0 10px var(--ember);animation:blink 1.2s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.snd{background:none;border:1px solid rgba(233,227,215,.35);padding:7px 10px;font:600 10px/1 var(--mono);letter-spacing:.16em;cursor:pointer;text-transform:uppercase}
+.snd[aria-pressed="true"]{border-color:var(--ember);color:var(--ember)}
+.corner{position:absolute;width:22px;height:22px;z-index:50;border-color:rgba(233,227,215,.5);border-style:solid;border-width:0;pointer-events:none}
+.corner.a{top:54px;left:20px;border-top-width:1px;border-left-width:1px}
+.corner.b{top:54px;right:20px;border-top-width:1px;border-right-width:1px}
+.corner.c{bottom:54px;left:20px;border-bottom-width:1px;border-left-width:1px}
+.corner.d{bottom:54px;right:20px;border-bottom-width:1px;border-right-width:1px}
+
+/* scenes */
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity 1s ease,visibility 0s 1s}
+.scene.on{opacity:1;visibility:visible;transition:opacity 1.1s ease}
+
+/* torch cursor (shared) */
+.dark{position:absolute;inset:0;pointer-events:none;z-index:10;
+  background:radial-gradient(circle var(--r,170px) at var(--lx,50%) var(--ly,50%),rgba(255,214,160,.04) 0,rgba(6,6,7,.35) 45%,rgba(6,6,7,.93) 100%)}
+
+/* ---------- INTRO ---------- */
+#intro{display:grid;place-items:center;text-align:center}
+#embers{position:absolute;inset:0;width:100%;height:100%;z-index:11;opacity:.7;pointer-events:none}
+.title-wrap{position:relative;z-index:12;display:flex;flex-direction:column;align-items:center;gap:22px;padding-inline:20px}
+.kicker{font:600 11px/1 var(--mono);letter-spacing:.42em;color:var(--ash);text-transform:uppercase}
+.logo{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(78px,17vw,250px);line-height:.82;letter-spacing:-.04em;margin:0;position:relative;color:var(--bone)}
+.logo span{display:inline-block;animation:jit 4s infinite steps(1);animation-delay:var(--d)}
+@keyframes jit{0%,92%,100%{transform:none;opacity:1}93%{transform:translate(3px,-2px) skewX(-8deg);opacity:.6}95%{transform:translate(-4px,1px);opacity:1}97%{opacity:.2}}
+.logo::before,.logo::after{content:attr(data-t);position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen}
+.logo::before{color:#ff2a1a;transform:translate(-3px,0);opacity:.55;clip-path:inset(0 0 60% 0);animation:rgb 3s infinite steps(1)}
+.logo::after{color:#2af0ff;transform:translate(3px,0);opacity:.35;clip-path:inset(55% 0 0 0);animation:rgb 2.3s infinite steps(1) reverse}
+@keyframes rgb{0%,88%{clip-path:inset(0 0 100% 0)}89%{clip-path:inset(20% 0 55% 0)}92%{clip-path:inset(62% 0 8% 0)}95%{clip-path:inset(40% 0 35% 0)}}
+.kr-name{font:600 15px/1 var(--kr);letter-spacing:.9em;color:var(--ash);margin-right:-.9em}
+.q{font:400 clamp(16px,2.1vw,22px)/1.6 var(--kr);color:var(--bone);min-height:1.6em;margin:6px 0 0}
+.q .cur{display:inline-block;width:.5em;border-bottom:2px solid var(--ember);animation:blink .9s steps(1) infinite;margin-left:2px}
+
+.hold{position:relative;margin-top:14px;background:none;border:0;cursor:none;padding:18px 34px;font:600 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--bone)}
+.hold .lbl b{color:var(--ember);font-weight:600}
+.hold svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.hold rect{fill:none;stroke:rgba(233,227,215,.35);stroke-width:1}
+.hold rect.p{stroke:var(--ember);stroke-width:2;stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.hold .hint{display:block;margin-top:10px;font-size:9.5px;letter-spacing:.24em;color:var(--ash)}
+.hold.armed{animation:thrum .25s infinite}
+@keyframes thrum{50%{transform:scale(1.02)}}
+
+/* ---------- CRIME SCENE ---------- */
+#room{position:absolute;left:0;top:0;height:100%;width:100%;will-change:transform}
+.clue{cursor:none}
+.clue .glow{opacity:0;transition:opacity .3s}
+.clue.near .glow{opacity:1}
+.clue.found{pointer-events:none}
+.clue.found .glow{opacity:0}
+.plate-reveal{opacity:0;transition:opacity .25s}
+.reveal-on .plate-reveal{opacity:1}
+.tray{transition:opacity .8s}
+.reveal-on .tray{opacity:.2}
+
+.reticle{position:absolute;z-index:20;pointer-events:none;width:84px;height:84px;margin:-42px 0 0 -42px;opacity:0;transform:scale(1.4);transition:opacity .25s,transform .35s cubic-bezier(.2,.8,.2,1)}
+.reticle.on{opacity:1;transform:scale(1)}
+.reticle i{position:absolute;width:14px;height:14px;border:0 solid var(--tape)}
+.reticle i:nth-child(1){top:0;left:0;border-top-width:1.5px;border-left-width:1.5px}
+.reticle i:nth-child(2){top:0;right:0;border-top-width:1.5px;border-right-width:1.5px}
+.reticle i:nth-child(3){bottom:0;left:0;border-bottom-width:1.5px;border-left-width:1.5px}
+.reticle i:nth-child(4){bottom:0;right:0;border-bottom-width:1.5px;border-right-width:1.5px}
+.reticle span{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;white-space:nowrap;font:600 10px/1 var(--mono);letter-spacing:.2em;color:var(--tape)}
+
+.brief{pointer-events:none;position:absolute;z-index:22;left:50%;top:calc(15% + 10px);transform:translateX(-50%);text-align:center;pointer-events:none;width:min(560px,calc(100% - 40px))}
+.brief .k{font:600 10px/1 var(--mono);letter-spacing:.34em;color:var(--ember);text-transform:uppercase}
+.brief p{margin:12px 0 0;font:400 clamp(14px,1.7vw,17px)/1.65 var(--kr);color:var(--bone);text-shadow:0 2px 12px #000}
+.brief.gone{opacity:0;transition:opacity .8s}
+
+.tray{position:absolute;z-index:22;right:24px;bottom:calc(min(7vh,max(0px,(100% - 100vw / 2.39) / 2)) + 20px);display:flex;gap:10px;align-items:flex-end;pointer-events:none}
+@media (orientation:portrait){.tray{right:50%;transform:translateX(50%);bottom:calc(9vh + 22px)}.whisper{bottom:calc(9vh + 200px)}}
+@media (orientation:landscape) and (max-width:1100px){.whisper{left:0;right:auto;width:50%}}
+.tray-head{position:absolute;bottom:100%;left:0;right:0;margin-bottom:10px;display:flex;justify-content:space-between;font:600 10px/1 var(--mono);letter-spacing:.24em;color:var(--ash);text-transform:uppercase}
+.tray-head b{color:var(--bone);font-weight:600;font-variant-numeric:tabular-nums}
+.slot{width:clamp(62px,9vw,98px);aspect-ratio:3/4;border:1px dashed rgba(233,227,215,.25);display:grid;place-items:center;font:600 10px var(--mono);color:rgba(233,227,215,.3);position:relative}
+.slot.filled{border:0;background:var(--bone);color:#111;padding:6px 6px 0;place-items:start;animation:drop .7s cubic-bezier(.2,.8,.2,1);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.slot.filled:nth-child(odd){transform:rotate(-3deg)}.slot.filled:nth-child(even){transform:rotate(2.5deg)}
+@keyframes drop{from{transform:translateY(-60vh) rotate(-30deg);opacity:0}}
+.slot .ph{width:100%;aspect-ratio:1;background:#121010;overflow:hidden}
+.slot .ph img{width:100%;height:100%;object-fit:cover;display:block;filter:contrast(1.05) saturate(.9)}
+.slot .cap{font:900 clamp(11px,1.2vw,14px)/1 var(--kr);margin-top:6px;letter-spacing:-.02em}
+.slot .no{position:absolute;top:-8px;right:-6px;background:var(--tape);color:#000;font:600 9px/1 var(--mono);padding:3px 4px}
+
+.file{position:absolute;z-index:60;left:50%;top:50%;width:min(420px,calc(100% - 40px));transform:translate(-50%,-46%) rotate(-1.5deg);background:var(--bone);color:#151210;padding:22px 24px 24px;opacity:0;visibility:hidden;transition:opacity .3s,transform .5s cubic-bezier(.2,.8,.2,1),visibility 0s .3s;box-shadow:0 30px 90px rgba(0,0,0,.8);cursor:auto}
+.file.on{opacity:1;visibility:visible;transform:translate(-50%,-50%) rotate(-1.5deg);transition:opacity .3s,transform .5s cubic-bezier(.2,.8,.2,1)}
+.file .shot{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;margin-bottom:16px;filter:contrast(1.05)}
+.file .stamp{z-index:2;position:absolute;top:18px;right:18px;border:2px solid var(--blood);color:var(--blood);font:600 10px/1 var(--mono);letter-spacing:.2em;padding:6px 8px;transform:rotate(8deg)}
+.file .meta{font:600 10px/1 var(--mono);letter-spacing:.24em;color:#6b6358;text-transform:uppercase}
+.file h3{font:900 34px/1.05 var(--kr);margin:14px 0 4px;letter-spacing:-.03em}
+.file .en{font:italic 400 16px var(--display);color:#6b6358}
+.file p{font:400 15px/1.7 var(--kr);margin:14px 0 18px}
+.file button{border:0;background:#151210;color:var(--bone);padding:12px 16px;font:600 11px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;cursor:pointer;width:100%}
+
+.whisper{position:absolute;z-index:24;left:0;right:0;bottom:calc(min(7vh,max(0px,(100% - 100vw / 2.39) / 2)) + 24px);text-align:center;font:600 clamp(18px,2.6vw,28px)/1.5 var(--kr);color:var(--bone);opacity:0;transition:opacity 1.2s;text-shadow:0 0 30px rgba(125,13,16,.9);padding-inline:20px}
+.whisper{pointer-events:none}
+.whisper.on{opacity:1}
+.whisper small{display:block;font:600 10px/1 var(--mono);letter-spacing:.3em;color:var(--ember);margin-bottom:12px}
+.next{margin-top:18px;background:none;border:1px solid rgba(233,227,215,.4);padding:12px 18px;font:600 11px/1 var(--mono);letter-spacing:.26em;text-transform:uppercase;cursor:pointer}
+.whisper.on .next{pointer-events:auto}
+.next:hover{border-color:var(--ember);color:var(--ember)}
+
+#crime.dead .dark{background:rgba(6,6,7,.99)!important;transition:background .1s}
+#crime.redlight .dark{background:radial-gradient(ellipse calc(var(--r) * 1.6) calc(var(--r) * 2) at var(--lx) var(--ly),rgba(0,0,0,0) 0,rgba(6,6,7,.15) 50%,rgba(6,6,7,.55) 100%)!important}
+.reveal-on #room{filter:brightness(1.45) contrast(1.08)}
+
+/* ---------- CREDITS ---------- */
+#outro{display:grid;place-items:center;overflow-y:auto;cursor:auto;background:linear-gradient(90deg,var(--void) 30%,rgba(6,6,7,.55) 62%,rgba(6,6,7,.15) 100%),url(img/keyart.jpg) right center/auto 100% no-repeat var(--void)}
+@media (max-width:760px){#outro{background:linear-gradient(180deg,rgba(6,6,7,.2) 0,rgba(6,6,7,.75) 40%,var(--void) 62%),url(img/keyart.jpg) center top/100% auto no-repeat var(--void)}}
+#outro .wrap{position:relative;z-index:12;width:min(1180px,calc(100% - 40px));display:grid;grid-template-columns:minmax(0,520px);gap:28px;justify-content:start;padding-block:64px}
+@media (max-width:760px){#outro .wrap{grid-template-columns:1fr;padding-top:52vw}}
+.big{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(70px,10vw,140px);line-height:.82;letter-spacing:-.045em;margin:0}
+.big em{display:block;font-style:normal;font-weight:400;font-size:.2em;letter-spacing:.3em;color:var(--ember);margin-bottom:.6em;font-family:var(--mono)}
+.manifesto{margin-top:20px;font:600 clamp(11px,1.15vw,13px)/2 var(--mono);letter-spacing:.2em;color:var(--ash);text-transform:uppercase}
+.manifesto span{display:block;opacity:0;transform:translateY(8px);transition:.7s cubic-bezier(.2,.8,.2,1)}
+#outro.on .manifesto span{opacity:1;transform:none}
+#outro.on .manifesto span:nth-child(2){transition-delay:.25s}
+#outro.on .manifesto span:nth-child(3){transition-delay:.5s;color:var(--bone)}
+.dossier{border-top:1px solid rgba(233,227,215,.3);display:grid}
+.row{display:grid;grid-template-columns:88px 1fr;gap:14px;padding:11px 0;border-bottom:1px solid rgba(233,227,215,.14);align-items:baseline}
+.row dt{font:600 10px/1.4 var(--mono);letter-spacing:.22em;color:var(--ash);text-transform:uppercase}
+.row dd{margin:0;font:400 15px/1.55 var(--kr);min-width:0}
+.row dd b{font-weight:900}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.cta a,.cta button{flex:1 1 160px;text-align:center;text-decoration:none;padding:16px 18px;font:600 11px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;cursor:pointer;border:1px solid var(--bone);background:none;color:var(--bone);transition:background .25s,color .25s}
+.cta a{background:var(--bone);color:#111}
+.cta a:hover{background:var(--ember);border-color:var(--ember);color:#111}
+.cta button:hover{border-color:var(--ember);color:var(--ember)}
+.fine{margin-top:14px;font:400 12px/1.6 var(--kr);color:var(--ash)}
+
+/* torch dot */
+.torch{position:absolute;z-index:55;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:rgba(255,220,170,.9);box-shadow:0 0 16px 4px rgba(255,190,120,.35);pointer-events:none;mix-blend-mode:screen}
+#outro.on ~ .torch,.film.outro .torch{display:none}
+
+@media (prefers-reduced-motion:reduce){
+  .logo span,.logo::before,.logo::after,.rec,.hold.armed,.film.shake{animation:none!important}
+  #fx{display:none}
+}
+.unofficial{position:fixed;left:50%;top:max(10px,calc(min(7vh,60px)/2 - 7px));transform:translateX(-50%);z-index:60;font:500 10px/1.4 "JetBrains Mono",monospace;letter-spacing:.12em;color:rgba(233,227,215,.55);white-space:nowrap;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="film" id="film">
+
+  <!-- INTRO -->
+  <section class="scene on" id="intro" aria-label="인세인 타이틀">
+    <canvas id="embers" aria-hidden="true"></canvas>
+    <div class="dark" id="darkIntro" style="--r:340px"></div>
+    <div class="title-wrap">
+      <div class="kicker">UMEPLAY KOREA · Immersive Cinema</div>
+      <h1 class="logo" data-t="INSANE" aria-label="INSANE"><span style="--d:0s">I</span><span style="--d:.7s">N</span><span style="--d:1.9s">S</span><span style="--d:.3s">A</span><span style="--d:2.6s">N</span><span style="--d:1.2s">E</span></h1>
+      <div class="kr-name">인세인</div>
+      <p class="q" id="q"><span id="qt"></span><span class="cur"></span></p>
+      <button class="hold" id="hold" type="button" aria-label="사건 현장에 들어가기">
+        <svg aria-hidden="true"><rect x="0" y="0" width="100%" height="100%"/><rect class="p" id="holdP" x="0" y="0" width="100%" height="100%"/></svg>
+        <span class="lbl">Play <b>[</b> Enter the film <b>]</b></span>
+        <span class="hint">클릭해서 입장</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- CRIME SCENE -->
+  <section class="scene" id="crime" aria-label="사건 현장">
+    <svg id="room" viewBox="0 0 1600 905" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="glow" r="50%"><stop offset="0" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+      </defs>
+      <image href="img/room.jpg" width="1600" height="905" preserveAspectRatio="xMidYMid slice"/>
+      <image class="plate-reveal" href="img/reveal.jpg" width="1600" height="905" preserveAspectRatio="xMidYMid slice"/>
+      <rect class="figure-spot" x="1390" y="90" width="90" height="560" fill="transparent" pointer-events="none"/>
+
+      <g class="clue" data-i="0" tabindex="0" role="button" aria-label="단서: 그을린 문">
+        <circle class="glow" cx="1352" cy="330" r="150" fill="url(#glow)"/>
+        <circle cx="1352" cy="330" r="110" fill="transparent"/>
+      </g>
+      <g class="clue" data-i="1" tabindex="0" role="button" aria-label="단서: 바닥의 윤곽선">
+        <circle class="glow" cx="630" cy="690" r="160" fill="url(#glow)"/>
+        <circle cx="630" cy="690" r="110" fill="transparent"/>
+      </g>
+      <g class="clue" data-i="2" tabindex="0" role="button" aria-label="단서: 수사관 출입증">
+        <circle class="glow" cx="190" cy="800" r="110" fill="url(#glow)"/>
+        <circle cx="190" cy="800" r="75" fill="transparent"/>
+      </g>
+      <g class="clue" data-i="3" tabindex="0" role="button" aria-label="단서: VHS 테이프">
+        <circle class="glow" cx="884" cy="418" r="110" fill="url(#glow)"/>
+        <circle cx="884" cy="418" r="70" fill="transparent"/>
+      </g>
+    </svg>
+
+    <div class="dark" id="darkCrime"></div>
+    <div class="reticle" id="reticle" aria-hidden="true"><i></i><i></i><i></i><i></i><span>[ ? ] 조사하기</span></div>
+
+    <div class="brief" id="brief">
+      <div class="k">Case file · 수사관 지정</div>
+      <p>한 아파트에서 화재와 살인이 일어났습니다.<br>손전등으로 현장을 비추고 단서 4개를 찾으세요.</p>
+    </div>
+
+    <div class="tray" id="tray">
+      <div class="tray-head"><span>Evidence</span><b id="count">0 / 4</b></div>
+      <div class="slot">01</div><div class="slot">02</div><div class="slot">03</div><div class="slot">04</div>
+    </div>
+
+    <div class="whisper" id="whisper">
+      <small>Signal lost</small>
+      그 방에 있던 건 당신만이 아니었습니다.<br>
+      <button class="next" id="toOutro" type="button">진실을 마주하기 →</button>
+    </div>
+
+    <div class="file" id="file" role="dialog" aria-modal="true" aria-labelledby="fileT">
+      <div class="stamp">EVIDENCE</div>
+      <img class="shot" id="fileImg" src="img/ev1.jpg" alt="">
+      <div class="meta" id="fileM">No. 01 · 현장 감식</div>
+      <h3 id="fileT">화재</h3>
+      <div class="en" id="fileE">The fire</div>
+      <p id="fileP"></p>
+      <button type="button" id="fileClose">증거 보관함에 넣기</button>
+    </div>
+  </section>
+
+  <!-- CREDITS -->
+  <section class="scene" id="outro" aria-label="인세인 공연 정보">
+    <div class="wrap">
+      <div>
+        <h2 class="big"><em>UMEPLAY · Film 01</em>INSANE</h2>
+        <div class="manifesto">
+          <span>There is no stage.</span>
+          <span>There is no audience.</span>
+          <span>You are already inside the movie.</span>
+        </div>
+      </div>
+      <div>
+        <dl class="dossier">
+          <div class="row"><dt>Genre</dt><dd><b>이머시브 시네마</b><br>방탈출을 넘어선 몰입형 공연</dd></div>
+          <div class="row"><dt>Case</dt><dd>아파트 화재 · 살인 사건</dd></div>
+          <div class="row"><dt>Role</dt><dd>당신은 <b>수사관</b>. 배우와 같은 공간에서 단서를 찾습니다.</dd></div>
+          <div class="row"><dt>Venue</dt><dd>홍대 로드 유미플레이 1관</dd></div>
+          <div class="row"><dt>Booking</dt><dd>네이버 예약에서 날짜와 회차 선택</dd></div>
+        </dl>
+        <div class="cta">
+          <a href="https://www.umeplay.kr/" target="_blank" rel="noopener">공식 사이트</a>
+          <button type="button" id="again">다시 들어가기</button>
+        </div>
+        <p class="fine">당신은 진실을 끝까지 마주할 수 있습니까?</p>
+        <p class="fine">비공식 콘셉트 시안입니다. 유미플레이·인세인과 무관하며, 인물과 현장 이미지는 모두 AI로 생성한 가상 이미지입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="torch" id="torch" aria-hidden="true"></div>
+  <div class="bar t"></div><div class="bar b"></div>
+  <div class="vignette"></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="scan"></div>
+  <div class="unofficial">비공식 콘셉트 시안 · AI 생성 이미지</div>
+
+  <div class="corner a"></div><div class="corner b"></div><div class="corner c"></div><div class="corner d"></div>
+  <div class="hud tl"><span class="rec"></span>REC</div>
+  <div class="hud tr" id="tc">00:00:00:00</div>
+  <div class="hud bl" id="hudScene">FILM 01 · TITLE</div>
+  <div class="hud br"><span>2.39 : 1</span><button class="snd" id="snd" type="button" aria-pressed="false">Sound off</button></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const film = $('#film'), torch = $('#torch');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let scene = 'intro';
+
+/* ---------- pointer → smoothed torch ---------- */
+const P = {x: innerWidth/2, y: innerHeight*.55, tx: innerWidth/2, ty: innerHeight*.55, moved: false};
+addEventListener('pointermove', e => { P.tx = e.clientX; P.ty = e.clientY; P.moved = true; }, {passive:true});
+addEventListener('pointerdown', e => { P.tx = e.clientX; P.ty = e.clientY; P.moved = true; }, {passive:true});
+
+/* ---------- audio (opt-in) ---------- */
+const A = {ctx:null, on:false, master:null, beatRate:1.1, nextBeat:0};
+function audioInit(){
+  if (A.ctx) return;
+  const C = new (window.AudioContext||window.webkitAudioContext)();
+  A.ctx = C; A.master = C.createGain(); A.master.gain.value = 0; A.master.connect(C.destination);
+  const lp = C.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=180; lp.connect(A.master);
+  [41.2, 41.7, 61.8].forEach((f,i) => { const o=C.createOscillator(); o.type= i<2?'sawtooth':'sine'; o.frequency.value=f; const g=C.createGain(); g.gain.value= i<2?.12:.08; o.connect(g); g.connect(lp); o.start(); });
+  const lfo=C.createOscillator(); lfo.frequency.value=.07; const lg=C.createGain(); lg.gain.value=90; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+}
+function thump(t, v=1){
+  const C=A.ctx, o=C.createOscillator(), g=C.createGain();
+  o.frequency.setValueAtTime(70,t); o.frequency.exponentialRampToValueAtTime(38,t+.18);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.55*v,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+.3);
+  o.connect(g); g.connect(A.master); o.start(t); o.stop(t+.32);
+}
+function noise(dur=.6, vol=.4, f=900){
+  if (!A.on) return;
+  const C=A.ctx, b=C.createBuffer(1, C.sampleRate*dur, C.sampleRate), d=b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+  const s=C.createBufferSource(); s.buffer=b; const bp=C.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f; bp.Q.value=.7;
+  const g=C.createGain(); g.gain.value=vol; s.connect(bp); bp.connect(g); g.connect(A.master); s.start();
+}
+function stinger(){
+  if (!A.on) return;
+  const C=A.ctx, t=C.currentTime;
+  [233, 247, 349, 370].forEach(f => { const o=C.createOscillator(), g=C.createGain(); o.type='sawtooth'; o.frequency.value=f; o.frequency.linearRampToValueAtTime(f*.94,t+2.2); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.06,t+.05); g.gain.exponentialRampToValueAtTime(.001,t+2.4); o.connect(g); g.connect(A.master); o.start(t); o.stop(t+2.5); });
+  noise(1.2,.5,2400);
+}
+const sndBtn = $('#snd');
+sndBtn.addEventListener('click', () => {
+  audioInit(); A.on = !A.on; A.ctx.resume();
+  A.master.gain.setTargetAtTime(A.on ? .8 : 0, A.ctx.currentTime, .3);
+  A.nextBeat = A.ctx.currentTime + .2;
+  sndBtn.setAttribute('aria-pressed', A.on); sndBtn.textContent = A.on ? 'Sound on' : 'Sound off';
+});
+function heartbeat(){
+  if (!A.on || !A.ctx) return;
+  const t = A.ctx.currentTime;
+  if (t >= A.nextBeat){ thump(A.nextBeat); thump(A.nextBeat+.22,.6); A.nextBeat += 60/(48*A.beatRate); }
+}
+
+/* ---------- grain ---------- */
+const fx = $('#fx'), fctx = fx.getContext('2d');
+const nC = document.createElement('canvas'); nC.width = nC.height = 160; const nX = nC.getContext('2d');
+const nImg = nX.createImageData(160,160);
+function grain(){
+  const d = nImg.data;
+  for (let i=0;i<d.length;i+=4){ const v=Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+  nX.putImageData(nImg,0,0);
+  fctx.fillStyle = fctx.createPattern(nC,'repeat');
+  fctx.fillRect(0,0,fx.width,fx.height);
+}
+
+/* ---------- embers ---------- */
+const em = $('#embers'), ectx = em.getContext('2d');
+let sparks = [];
+function sizeAll(){
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  fx.width = innerWidth/2; fx.height = innerHeight/2;
+  em.width = innerWidth*dpr; em.height = innerHeight*dpr; ectx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize', sizeAll); sizeAll();
+function spawn(){ return {x:Math.random()*innerWidth, y:innerHeight+10, vy:.4+Math.random()*1.1, vx:(Math.random()-.5)*.4, r:.6+Math.random()*1.8, life:1, w:Math.random()*6.28}; }
+for (let i=0;i<70;i++){ const s=spawn(); s.y=Math.random()*innerHeight; sparks.push(s); }
+function embers(){
+  ectx.clearRect(0,0,innerWidth,innerHeight);
+  ectx.globalCompositeOperation='lighter';
+  for (const s of sparks){
+    s.w += .03; s.y -= s.vy; s.x += s.vx + Math.sin(s.w)*.35; s.life -= .0016;
+    if (s.y < -10 || s.life <= 0) Object.assign(s, spawn());
+    const a = Math.max(0,s.life) * (0.5+0.5*Math.sin(s.w*3));
+    ectx.fillStyle = `rgba(255,${90+Math.random()*60|0},30,${a})`;
+    ectx.beginPath(); ectx.arc(s.x,s.y,s.r,0,6.28); ectx.fill();
+  }
+  ectx.globalCompositeOperation='source-over';
+}
+
+/* ---------- intro typewriter ---------- */
+const lines = ['당신은 진실을 끝까지 마주할 수 있습니까?', 'Can you face the truth?'];
+let li = 0, ci = 0, qt = $('#qt');
+function type(){
+  const L = lines[li];
+  if (ci <= L.length){ qt.textContent = L.slice(0,ci++); setTimeout(type, 70 + Math.random()*60); }
+  else setTimeout(() => { li = (li+1)%lines.length; ci = 0; type(); }, 2600);
+}
+reduce ? (qt.textContent = lines[0]) : setTimeout(type, 900);
+
+/* ---------- hold to enter ---------- */
+const hold = $('#hold'), holdP = $('#holdP');
+let holdT = 0, holding = false;
+function perim(){ const r = hold.getBoundingClientRect(); const L = 2*(r.width+r.height); hold.style.setProperty('--len', L); return L; }
+let LEN = perim(); addEventListener('resize', () => LEN = perim());
+// one press starts the charge; it fills on its own and then enters
+const startHold = () => { if (holding || scene !== 'intro') return; holding = true; hold.classList.add('armed'); if (A.on) A.ctx.resume(); };
+hold.addEventListener('click', startHold);
+hold.addEventListener('pointerdown', startHold);
+
+/* ---------- scene switching ---------- */
+function go(name){
+  scene = name;
+  document.querySelectorAll('.scene').forEach(s => s.classList.toggle('on', s.id === name));
+  film.classList.toggle('scope', name === 'crime');
+  film.classList.toggle('outro', name === 'outro');
+  $('#hudScene').textContent = {intro:'FILM 01 · TITLE', crime:'FILM 01 · SCENE 14 · 현장', outro:'FILM 01 · END CREDITS'}[name];
+  if (name === 'crime') setTimeout(() => $('.clue').focus({preventScroll:true}), 1200);
+}
+
+/* ---------- crime scene ---------- */
+const room = $('#room'), crime = $('#crime'), dark = $('#darkCrime'), reticle = $('#reticle');
+const clues = [...document.querySelectorAll('.clue')];
+const EV = [
+  {k:'화재', en:'The fire', m:'No. 01 · 그을린 문', p:'한 아파트에서 불이 났습니다. 문 위의 그을음은 아직 식지 않았습니다.',
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="#ff5a1f" stroke-width="1.6"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 2 1 3 2 3 4"/></svg>'},
+  {k:'살인', en:'The body', m:'No. 02 · 바닥의 윤곽선', p:'그리고 누군가 죽었습니다. 분필 선이 그 자리를 기억하고 있습니다.',
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="#e9e3d7" stroke-width="1.4" stroke-dasharray="2 1.5"><circle cx="12" cy="6" r="3"/><path d="M12 9v7M7 12h10M12 16l-4 5M12 16l4 5"/></svg>'},
+  {k:'수사관', en:'The investigator', m:'No. 03 · 출입증', p:'출입증에 적힌 이름은 당신입니다. 이 사건의 수사관으로 지목되었습니다.',
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="#e8c21b" stroke-width="1.5"><rect x="4" y="6" width="16" height="12" rx="1.5"/><rect x="6.5" y="9" width="4" height="5"/><path d="M13 10h5M13 13h3"/></svg>'},
+  {k:'필름', en:'The film', m:'No. 04 · VHS 테이프', p:'무대도, 관객도 없습니다. 당신은 이미 영화 안에 들어와 있습니다.',
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="#e9e3d7" stroke-width="1.5"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="8.5" cy="13" r="2"/><circle cx="15.5" cy="13" r="2"/><path d="M6 9h12"/></svg>'}
+];
+let found = 0, openI = -1, R = 170, flick = 1, dead = false;
+const file = $('#file');
+function openFile(i){
+  if (clues[i].classList.contains('found') || openI >= 0 || dead) return;
+  openI = i; const e = EV[i];
+  $('#fileImg').src = `img/ev${i+1}.jpg`; $('#fileM').textContent = e.m; $('#fileT').textContent = e.k; $('#fileE').textContent = e.en; $('#fileP').textContent = e.p;
+  file.classList.add('on'); $('#fileClose').focus({preventScroll:true});
+  noise(.25,.35,3000); $('#brief').classList.add('gone');
+}
+function closeFile(){
+  if (openI < 0) return;
+  const i = openI, e = EV[i]; openI = -1;
+  file.classList.remove('on');
+  clues[i].classList.add('found');
+  const slot = document.querySelectorAll('.slot')[found];
+  slot.classList.add('filled');
+  slot.innerHTML = `<span class="no">0${i+1}</span><div class="ph"><img src="img/ev${i+1}.jpg" alt=""></div><div class="cap">${e.k}</div>`;
+  found++; $('#count').textContent = `${found} / 4`;
+  A.beatRate = 1.1 + found*.35;
+  if (found === 4) setTimeout(reveal, 1400);
+  else { const n = clues.find(c => !c.classList.contains('found')); n && n.focus({preventScroll:true}); }
+}
+$('#fileClose').addEventListener('click', closeFile);
+addEventListener('keydown', e => { if (e.key === 'Escape') closeFile(); });
+clues.forEach((c,i) => {
+  c.addEventListener('click', () => openFile(i));
+  c.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); openFile(i); } });
+  c.addEventListener('focus', () => { if (!c.matches(':focus-visible')) return; const r = c.getBoundingClientRect(); P.tx = r.left + r.width/2; P.ty = r.top + r.height/2; });
+});
+function reveal(){
+  dead = true; reticle.classList.remove('on');
+  // while the lights are out, swing the camera to the doorway
+  const W = room.getBoundingClientRect().width;
+  room.style.transition = 'transform 1.4s cubic-bezier(.6,0,.2,1)';
+  room.style.transform = `translateX(${-(W-innerWidth)*0.95}px)`;
+  let n = 0;
+  const f = setInterval(() => { crime.classList.toggle('dead'); noise(.08,.3,1800); if (++n > 7){ clearInterval(f); crime.classList.add('dead'); afterDark(); } }, 110);
+}
+function afterDark(){
+  setTimeout(() => {
+    const fr = $('.figure-spot').getBoundingClientRect();
+    dark.style.setProperty('--lx', (fr.left+fr.width/2)+'px'); dark.style.setProperty('--ly', (fr.top+fr.height*.55)+'px'); dark.style.setProperty('--r', Math.max(fr.width*2.2, 160)+'px');
+    crime.classList.remove('dead'); crime.classList.add('redlight', 'reveal-on');
+    film.classList.add('shake'); stinger(); A.beatRate = 3;
+    setTimeout(() => film.classList.remove('shake'), 1600);
+    setTimeout(() => { $('#whisper').classList.add('on'); $('#toOutro').focus({preventScroll:true}); }, 1500);
+  }, 1300);
+}
+$('#toOutro').addEventListener('click', () => { A.beatRate = 1; go('outro'); });
+$('#again').addEventListener('click', resetAll);
+function resetAll(){
+  found = 0; dead = false; openI = -1;
+  clues.forEach(c => c.classList.remove('found','near'));
+  document.querySelectorAll('.slot').forEach((s,i) => { s.className = 'slot'; s.textContent = '0'+(i+1); });
+  $('#count').textContent = '0 / 4';
+  crime.classList.remove('redlight','reveal-on','dead'); room.style.transition = '';
+  $('#whisper').classList.remove('on'); $('#brief').classList.remove('gone');
+  A.beatRate = 1.1; holdT = 0; holdP.style.strokeDashoffset = LEN;
+  go('intro'); hold.focus({preventScroll:true});
+}
+
+/* ---------- main loop ---------- */
+const t0 = performance.now(); let frame = 0;
+const tc = $('#tc'), dIntro = $('#darkIntro');
+function loop(now){
+  frame++;
+  const k = reduce ? 1 : .18;
+  P.x += (P.tx - P.x)*k; P.y += (P.ty - P.y)*k;
+  torch.style.transform = `translate(${P.x}px,${P.y}px)`;
+
+  // timecode
+  const s = (now - t0)/1000;
+  const pad = v => String(Math.floor(v)).padStart(2,'0');
+  tc.textContent = `${pad(s/3600)}:${pad(s/60%60)}:${pad(s%60)}:${pad((s*24)%24)}`;
+
+  // torch flicker
+  if (!reduce){ flick += ((Math.random() < .03 ? .55 + Math.random()*.3 : 1) - flick) * .35; }
+  if (scene === 'intro'){
+    dIntro.style.setProperty('--lx', P.x+'px'); dIntro.style.setProperty('--ly', P.y+'px');
+    dIntro.style.setProperty('--r', (Math.min(innerWidth,900)*.42*flick)+'px');
+    if (!reduce) embers();
+    if (holding){ holdT = Math.min(1, holdT + 1/75); if (A.on && frame%10===0) thump(A.ctx.currentTime,.4+holdT*.6); }
+    else holdT = Math.max(0, holdT - .04);
+    holdP.style.strokeDashoffset = LEN*(1-holdT);
+    if (holdT >= 1){ holding = false; holdT = 0; hold.classList.remove('armed'); noise(.6,.5,600); go('crime'); }
+  }
+  if (scene === 'crime' && !dead){
+    // pan the room with the torch so every corner is reachable on narrow screens
+    const W = Math.max(innerWidth*1.08, innerHeight*16/9);
+    room.style.width = W+'px';
+    room.style.transform = `translateX(${-(W-innerWidth)*Math.min(1,Math.max(0,P.x/innerWidth))}px)`;
+  }
+  if (scene === 'crime' && !dead){
+    R = Math.max(120, Math.min(innerWidth, innerHeight)*.24) * flick;
+    dark.style.setProperty('--lx', P.x+'px'); dark.style.setProperty('--ly', P.y+'px'); dark.style.setProperty('--r', R+'px');
+    let best = null, bd = 1e9;
+    for (const c of clues){
+      if (c.classList.contains('found')) continue;
+      const r = c.getBoundingClientRect(), cx = r.left+r.width/2, cy = r.top+r.height/2;
+      const d = Math.hypot(cx-P.x, cy-P.y);
+      c.classList.toggle('near', d < R*.75);
+      if (d < bd){ bd = d; best = {cx, cy}; }
+    }
+    if (best && bd < R*.55 && openI < 0){ reticle.classList.add('on'); reticle.style.left = best.cx+'px'; reticle.style.top = best.cy+'px'; }
+    else reticle.classList.remove('on');
+  }
+  if (!reduce && frame % 2 === 0) grain();
+  heartbeat();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
